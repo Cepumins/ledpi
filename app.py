@@ -2,7 +2,8 @@ from flask import Flask, render_template, jsonify, request, redirect, url_for
 import neopixel
 import board
 import threading
-
+import time
+import colorsys
 
 app = Flask(__name__)
 
@@ -22,13 +23,16 @@ LED_BRIGHTNESS = 0.1  # Adjust as needed
 LED_ORDER = neopixel.GRBW  # Adjust as needed for your LED strip type
 pixels = neopixel.NeoPixel(LED_PIN, LED_COUNT, brightness=LED_BRIGHTNESS, pixel_order=LED_ORDER)
 
+
 @app.route('/')
 def index():
     return render_template('index.html', led_states=led_states, settings=settings_data)
 
+
 @app.route('/settings')
 def settings():
     return render_template('settings.html', settings=settings_data)
+
 
 @app.route('/update_settings', methods=['POST'])
 def update_settings():
@@ -52,9 +56,11 @@ def update_settings():
     # Redirect to the index page where the settings will be displayed
     return redirect(url_for('settings'))
 
+
 @app.route('/get-led-status', methods=['GET'])
 def get_led_status():
     return jsonify(led_states)
+
 
 @app.route('/apply-color', methods=['POST'])
 def apply_color():
@@ -72,6 +78,7 @@ def apply_color():
         # Add logic to physically set LED color here
     print(f"Applied color {hex_color} to LEDs: {selected_leds}")
     return jsonify({"status": "success", "message": f"Color {hex_color} applied to LEDs: {selected_leds}"})
+
 
 @app.route('/apply-effect', methods=['POST'])
 def apply_effect():
@@ -97,12 +104,15 @@ def apply_effect():
                     # Save the current color for the breathing effect
                     current_color = led_states[led_id]['color'] if led_states[led_id]['status'] != 'off' else '#FFFFFF'
                     led_states[led_id] = {'status': 'breathing', 'color': current_color}
+                    start_effect('breathing', led_id, settings_data['breathing_speed'])
             elif effect == 'wave':
                 led_states[led_id] = {'status': 'wave', 'color': '#FFFFFF'}  # Default color for wave effect
+                start_effect('wave', selected_leds, settings_data['wave_speed'])
     # Add logic to physically apply the effect to the LED here
     pixels.show()
     print(f"Applied {effect} effect to LEDs: {selected_leds}")
     return jsonify({"status": "success", "message": f"Applied {effect} to LEDs: {selected_leds}"})
+
 
 @app.route('/apply-brightness', methods=['POST'])
 def apply_brightness():
@@ -148,6 +158,7 @@ def apply_brightness():
     print(f"Applied brightness {brightness_pct}% to LEDs: {selected_leds}")
     return jsonify({"status": "success", "message": f"Applied brightness to LEDs: {selected_leds}"})
 
+
 def hex_to_rgbw(hex_color):
     # Strip the '#' character and convert the string to an integer
     hex_color = hex_color.lstrip('#')
@@ -160,6 +171,82 @@ def hex_to_rgbw(hex_color):
     rgbw = tuple(c - w for c in rgb) + (w,)
     
     return rgbw
+
+
+def breathing_effect(led_id, color, duration):
+    # Calculate the RGB values from the hex color
+    rgbw_color = hex_to_rgbw(color)
+    # Calculate the time for each step (assuming 100 steps in the breathing cycle)
+    step_time = duration / 100
+
+    # Gradually increase brightness
+    for i in range(0, 101):
+        # Calculate the brightness level
+        brightness = i / 100
+        # Set the color with the adjusted brightness
+        adjusted_color = tuple(int(brightness * val) for val in rgbw_color)
+        pixels[led_id] = adjusted_color
+        time.sleep(step_time)
+
+    # Gradually decrease brightness
+    for i in range(100, -1, -1):
+        # Calculate the brightness level
+        brightness = i / 100
+        # Set the color with the adjusted brightness
+        adjusted_color = tuple(int(brightness * val) for val in rgbw_color)
+        pixels[led_id] = adjusted_color
+        time.sleep(step_time)
+
+
+def wave_effect(selected_leds, duration):
+    while True:  # Loop to continuously create the wave effect
+        for i in range(256):  # 256 different colors
+            for led_id in selected_leds:
+                # Calculate the color offset based on the LED's position and the current step in the color cycle
+                offset = (i + (led_id * 256 // len(selected_leds))) % 256
+                
+                # Convert HSV color to RGB. The HSV model is better for creating cycling colors.
+                # Here, 'offset / 255.0' gives the hue, 1.0 is full saturation, and 0.5 is the value (brightness).
+                rgb_color = colorsys.hsv_to_rgb(offset / 255.0, 1.0, 0.5)
+                
+                # Convert to the format for your specific LED library
+                rgbw_color = (int(rgb_color[0] * 255), int(rgb_color[1] * 255), int(rgb_color[2] * 255), 0)
+                
+                # Set the LED color (ensure this is thread-safe!)
+                pixels[led_id] = rgbw_color
+            
+            pixels.show()  # Update the LED colors
+            time.sleep(duration / 256)  # Wait before moving to the next color
+
+
+def start_effect(effect_name, selected_leds, duration):
+    global current_effect_threads
+    
+    # Stop and remove any existing effect threads for these LEDs
+    for led_id in selected_leds:
+        if led_id in current_effect_threads:
+            current_effect_threads[led_id].do_run = False
+            current_effect_threads[led_id].join()
+            del current_effect_threads[led_id]
+    
+    # Start the new effect in a separate thread
+    if effect_name == 'breathing':
+        for led_id in selected_leds:
+            current_color = led_states[led_id]['color'] if led_states[led_id]['status'] != 'off' else '#FFFFFF'
+            thread = threading.Thread(target=breathing_effect, args=(led_id, current_color, duration))
+            thread.do_run = True
+            thread.start()
+            current_effect_threads[led_id] = thread
+    elif effect_name == 'wave':
+        thread = threading.Thread(target=wave_effect, args=(selected_leds, duration))
+        thread.do_run = True
+        thread.start()
+        for led_id in selected_leds:
+            current_effect_threads[led_id] = thread
+
+
+current_effect_threads = {}
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8778)
