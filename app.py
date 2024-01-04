@@ -19,7 +19,7 @@ led_states = ["off"] * settings_data['num_lights']  # Assuming 100 LEDs
 # LED Configuration
 LED_PIN = board.D18  # GPIO 18
 LED_COUNT = settings_data['num_lights']  # Number of LEDs
-LED_BRIGHTNESS = 0.1  # Adjust as needed
+LED_BRIGHTNESS = 1  # Adjust as needed
 LED_ORDER = neopixel.GRBW  # Adjust as needed for your LED strip type
 pixels = neopixel.NeoPixel(LED_PIN, LED_COUNT, brightness=LED_BRIGHTNESS, pixel_order=LED_ORDER)
 
