@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+    {% include 'header.html' %}
+    <!-- Bootstrap CSS CDN Link -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.1.3/css/bootstrap.min.css">
+    <style>
+        .grid-container {
+            display: flex;
+        }
+        .light-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--adjusted-column-width), 30px); /* 10 columns */
+            grid-auto-rows: 30px;
+            grid-gap: 2px;
+        }
+        .light {
+            border: 1px solid #000000;
+            background-color: #000;
+        }
+        .light.selected {
+            border-color: #ffffff;
+        }
+        .grid-labels {
+            display: flex;
+            justify-content: space-between;
+            padding: 0;
+        }
+        .margins20 {
+            margin-left: 20px;
+            margin-top: 20px;
+        }
+        .off-controls {
+            margin-bottom: 20px;
+        }
+        #offModal {
+            /* Basic modal styles */
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #ddd;
+            z-index: 1000; /* Above other items */
+        }
+        .selector {
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .selector:hover {
+            color: #007bff; /* Bootstrap primary color for hover effect */
+        }
+
+        @keyframes breathing {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .breathing-effect {
+            animation: breathing var(--breathing-speed) ease-in-out infinite;
+        }
+
+        @keyframes rainbow {
+            0% { background-color: red; }
+            17% { background-color: orange; }
+            33% { background-color: yellow; }
+            50% { background-color: green; }
+            67% { background-color: blue; }
+            83% { background-color: indigo; }
+            100% { background-color: violet; }
+        }
+
+        .wave-effect {
+            animation: rainbow var(--wave-speed) linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="text-center mt-4">PI led control</h1>
+    <div class="grid-container">
+        <div>
+            <div class="grid-labels">
+                <div class="selector" onclick="selectAll()">All</div>
+                <!-- Column numbers -->
+                {% for i in range(1, settings.width_lights+1) %}
+                    <div class="selector" data-column="{{ i }}" onclick="selectColumn(this.getAttribute('data-column'))">{{ i }}</div>
+                {% endfor %}
+            </div>
+            <div class="light-grid">
+                <!-- Row numbers and lights -->
+                <!-- Lights -->
+                {% for i in range(settings.num_lights) %}
+                    {% if i % settings.width_lights == 0 %}
+                        <div class="selector grid-labels" data-row="{{ i }}" onclick="selectRow(this.getAttribute('data-row'))">{{ i // settings.width_lights + 1 }}</div>
+                    {% endif %}
+                    <div class="light" onclick="selectLight(this)" id="light{{ i }}"></div>
+                {% endfor %}
+            </div>
+        </div>
+        <div>
+            <div class="margins20">
+                <input type="color" id="colorPicker" oninput="applyColor()">
+            </div>
+            <div class="margins20">
+                <button onclick="applyEffect('off')">Off</button>
+            </div>
+            <div class="margins20">
+                <input style="width: 80px;" type="number" id="brightnessInput" placeholder="Brightness" min="0" max="100">
+                <button onclick="applyBrightness()">%</button>
+            </div>
+            <div class="margins20">
+                <button onclick="applyEffect('breathing')">Breathing</button>
+            </div>
+            <div class="margins20">
+                <button onclick="applyEffect('wave')">Wave</button>
+            </div>
+        </div>
+    </div>
+    
+    
+    <script>
+        function initializeLedStates() {
+        fetch('/get-led-status')
+            .then(response => response.json())
+            .then(ledStates => {
+                ledStates.forEach((led, index) => {
+                    const ledElement = document.getElementById('light' + index);
+                    // Remove all potential effect classes and reset background color first
+                    ledElement.classList.remove('breathing-effect', 'wave-effect');
+                    ledElement.style.backgroundColor = ''; // Reset to default
+
+                    if (led.status === 'on') {
+                        //ledElement.classList.add('selected');
+                        ledElement.style.backgroundColor = led.color;
+                    } else if (led.status === 'breathing') {
+                        ledElement.classList.add('breathing-effect');
+                        ledElement.style.backgroundColor = led.color;
+                        ledElement.classList.remove('selected');
+                    } else if (led.status === 'wave') {
+                        ledElement.classList.add('wave-effect');
+                        ledElement.classList.remove('selected');
+                    } else {
+                        ledElement.classList.remove('selected');
+                        ledElement.style.backgroundColor = ''; // Reset to default
+                    }
+                });
+            });
+        }
+        window.onload = initializeLedStates;
+
+        function selectLight(element) {
+            element.classList.toggle('selected');
+        }
+
+        function selectAll() {
+            let lights = document.querySelectorAll('.light');
+            let allSelected = Array.from(lights).every(light => light.classList.contains('selected'));
+            lights.forEach(light => light.classList.toggle('selected', !allSelected));
+        }
+
+        function selectRow(row) {
+            let startIndex = parseInt(row);
+            let endIndex = startIndex + widthLights;  
+            // Loop through each light in the row and toggle its 'selected' state
+            for (let i = startIndex; i < endIndex; i++) {
+                let lightElement = document.getElementById('light' + i);
+                if (lightElement) {
+                    selectLight(lightElement);
+                }
+            }
+        }
+
+        function selectColumn(column) {
+            let startIndex = parseInt(column) - 1;
+            
+            // Loop through each light in the column and toggle its 'selected' state
+            for (let i = startIndex; i < numLights; i += widthLights) {  // Assuming 100 LEDs in total
+                let lightElement = document.getElementById('light' + i);
+                if (lightElement) {
+                    selectLight(lightElement);
+                }
+            }
+        }
+
+        function applyColor() {
+            const selectedColor = document.getElementById('colorPicker').value;
+            let selectedLEDs = Array.from(document.querySelectorAll('.light.selected'))
+                                    .map(light => light.id.replace('light', ''));
+
+            fetch('/apply-color', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ leds: selectedLEDs, color: selectedColor })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+                initializeLedStates();
+            });
+        }
+
+        function applyEffect(selectedEffect) {
+            //let selectedEffect = document.getElementById('effectSelector').value;
+            let selectedLEDs = Array.from(document.querySelectorAll('.light.selected'))
+                                    .map(light => light.id.replace('light', ''));
+
+            fetch('/apply-effect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ leds: selectedLEDs, effect: selectedEffect })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+                initializeLedStates();
+            });
+        }
+
+        function applyBrightness() {
+            let brightnessValue = parseInt(document.getElementById('brightnessInput').value, 10);  // Get and parse the value
+
+            // Enforce the 0-100 range
+            if (brightnessValue < 0) {
+                brightnessValue = 0;
+            } else if (brightnessValue > 100) {
+                brightnessValue = 100;
+            }
+
+            let selectedLEDs = Array.from(document.querySelectorAll('.light.selected'))
+                                    .map(light => light.id.replace('light', ''));
+
+            fetch('/apply-brightness', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ leds: selectedLEDs, bright: brightnessValue })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+                initializeLedStates();
+            });
+        }
+    </script>
+    
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@eastdesire/jscolor@2.4.5/jscolor.js"></script>
+    <script>
+        var widthLights;
+        var numLights;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.documentElement.style.setProperty('--wave-speed', '{{ settings.wave_speed }}s');
+            document.documentElement.style.setProperty('--breathing-speed', '{{ settings.breathing_speed }}s');
+            document.documentElement.style.setProperty('--width-lights', '{{ settings.width_lights }}');
+            document.documentElement.style.setProperty('--num-lights', '{{ settings.num_lights }}');
+
+            widthLights = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--width-lights'), 10);
+            var columnCount = widthLights + 1;
+            document.documentElement.style.setProperty('--adjusted-column-width', columnCount);
+            numLights = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--num-lights'), 10);
+        });
+    </script>
+
+</body>
+</html>
