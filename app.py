@@ -1,14 +1,15 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for
 import neopixel
 import board
-import threading
-import time
-import colorsys
+#import threading
+#import time
+#import colorsys
+from functools import lru_cache
 
 app = Flask(__name__)
 
 settings_data = {
-    'num_lights': 100,
+    'num_lights': 150,
     'width_lights': 10,
     'breathing_speed': 5,
     'wave_speed': 5,
@@ -123,14 +124,14 @@ def apply_effect():
                     # Save the current color for the breathing effect
                     current_color = led_states[led_id]['color'] if led_states[led_id]['status'] != 'off' else '#FFFFFF'
                     led_states[led_id] = {'status': 'breathing', 'color': current_color}
-                    start_effect('breathing', led_id, settings_data['breathing_speed'])
+                    #start_effect('breathing', led_id, settings_data['breathing_speed'])
             elif effect == 'wave':
                 led_states[led_id] = {'status': 'wave', 'color': '#FFFFFF'}  # Default color for wave effect
-                start_effect('wave', selected_leds, settings_data['wave_speed'])
+                #start_effect('wave', selected_leds, settings_data['wave_speed'])
   
     # Add logic to physically apply the effect to the LED here
     pixels.show()
-    print(f"Applied {effect} effect to LEDs: {selected_leds}")
+    #print(f"Applied {effect} effect to LEDs: {selected_leds}")
     return jsonify({"status": "success", "message": f"Applied {effect} to LEDs: {selected_leds}"})
 
 
@@ -140,6 +141,7 @@ def apply_brightness():
     selected_leds = data.get('leds', [])
     brightness_pct = data.get('bright', 100)  # Default to 100% if not provided
 
+    @lru_cache(maxsize=5) # memorize up to 5 different results, as to prevent recalculation if applying same effect
     def adjust_color_brightness(color, brightness_pct):
         if not color.startswith('#') or len(color) != 7:
             return color  # or some default like "#FFFFFF"
@@ -179,26 +181,27 @@ def apply_brightness():
     return jsonify({"status": "success", "message": f"Applied brightness to LEDs: {selected_leds}"})
 
 
+# function to convert hex to rgbw
+@lru_cache(maxsize=10) # memorize up to 10 different results, as to prevent recalculation if applying same effect
 def hex_to_rgbw(hex_color):
     # Strip the '#' character and convert the string to an integer
     hex_color = hex_color.lstrip('#')
     # Convert the string into three integers as a tuple (RGB)
     rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-    
     # Calculate the white component as the minimum value of R, G, and B
     w = min(rgb)
     # Subtract the white component from each R, G, and B to get the new R, G, and B values
     rgbw = tuple(c - w for c in rgb) + (w,)
-    
+
     return rgbw
 
 
+'''
 def breathing_effect(led_id, color, duration):
     # Calculate the RGB values from the hex color
     rgbw_color = hex_to_rgbw(color)
     # Calculate the time for each step (assuming 100 steps in the breathing cycle)
     step_time = duration / 100
-
     # Gradually increase brightness
     for i in range(0, 101):
         # Calculate the brightness level
@@ -266,7 +269,7 @@ def start_effect(effect_name, selected_leds, duration):
 
 
 current_effect_threads = {}
-
+'''
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8778)
