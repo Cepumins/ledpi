@@ -67,21 +67,18 @@ def apply_color():
     data = request.get_json()
     selected_leds = data.get('leds')
     hex_color = data.get('color')
-    changed_leds = []
+    rgbw_color = hex_to_rgbw(hex_color)
     for led in selected_leds:
         led_id = int(led)
         if led_states[led_id]['color'] != hex_color:
+            pixels[led_id] = rgbw_color
             led_states[led_id] = {"status": "on", "color": hex_color}
-            changed_leds.append(led_id) 
-            #pixels[led_id] = rgbw_color
-    rgbw_color = hex_to_rgbw(hex_color)
-    for led_id in changed_leds:
-        pixels[led_id] = rgbw_color
+            
     pixels.show()
         #current_state = led_states[led_id]
         #print(f"Previous status of led {led_id} is: {current_state['status']}")
         # Add logic to physically set LED color here
-    print(f"Applied color {hex_color} to LEDs: {selected_leds}")
+    #print(f"Applied color {hex_color} to LEDs: {selected_leds}")
     return jsonify({"status": "success", "message": f"Color {hex_color} applied to LEDs: {selected_leds}"})
 
 
@@ -101,7 +98,7 @@ def apply_effect():
         if effect == 'off':
             if led_states[led_id]['status'] != 'off':
                 led_states[led_id] = {'status': 'off', 'color': '#000000'}
-                off_leds.append(led_id)  # Add LED to the off list
+                pixels[led_id] = (0, 0, 0, 0)
         else:
             
             if effect == 'breathing':
@@ -115,9 +112,7 @@ def apply_effect():
             elif effect == 'wave':
                 led_states[led_id] = {'status': 'wave', 'color': '#FFFFFF'}  # Default color for wave effect
                 start_effect('wave', selected_leds, settings_data['wave_speed'])
-    # Turn off all LEDs in the off list
-    for led_id in off_leds:
-        pixels[led_id] = (0, 0, 0, 0)
+  
     # Add logic to physically apply the effect to the LED here
     pixels.show()
     print(f"Applied {effect} effect to LEDs: {selected_leds}")
