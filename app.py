@@ -54,7 +54,7 @@ def update_settings():
         led_states = led_states[:num_lights]
 
     # Redirect to the index page where the settings will be displayed
-    return redirect(url_for('settings'))
+    return redirect(url_for('index'))
 
 
 @app.route('/get-led-status', methods=['GET'])
