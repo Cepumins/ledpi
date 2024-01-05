@@ -139,9 +139,9 @@ def apply_effect():
 def apply_brightness():
     data = request.get_json()
     selected_leds = data.get('leds', [])
-    brightness_pct = data.get('bright', 100)  # Default to 100% if not provided
+    brightness_pct = data.get('bright', 100)
 
-    @lru_cache(maxsize=5) # memorize up to 5 different results, as to prevent recalculation if applying same effect
+    @lru_cache(maxsize=3) # memorize up to 3 different results, as to prevent recalculation if applying same effect
     def adjust_color_brightness(color, brightness_pct):
         if not color.startswith('#') or len(color) != 7:
             return color  # or some default like "#FFFFFF"
@@ -182,7 +182,7 @@ def apply_brightness():
 
 
 # function to convert hex to rgbw
-@lru_cache(maxsize=10) # memorize up to 10 different results, as to prevent recalculation if applying same effect
+#@lru_cache(maxsize=10) # memorize up to 10 different results, as to prevent recalculation if applying same effect
 def hex_to_rgbw(hex_color):
     # Strip the '#' character and convert the string to an integer
     hex_color = hex_color.lstrip('#')
