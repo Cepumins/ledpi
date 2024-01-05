@@ -61,6 +61,10 @@
             <label for="width_lights">Width of Lights:</label>
             <input type="number" id="width_lights" name="width_lights" value="{{ settings.width_lights }}" min="1" step="1">
         </div>
+        <div class="form-row margins20">
+            <label for="max_brightness">Max brightness: (%)</label>
+            <input type="number" id="max_brightness" name="max_brightness" value="{{ settings.max_brightness }}" min="1" max='100' step="1">
+        </div>
         <!-- other settings 
         <div class="form-row margins20">
             <label for="breathing_speed">Breathing speed (s):</label>

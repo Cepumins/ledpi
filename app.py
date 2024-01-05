@@ -11,7 +11,8 @@ settings_data = {
     'num_lights': 100,
     'width_lights': 10,
     'breathing_speed': 5,
-    'wave_speed': 5
+    'wave_speed': 5,
+    'max_brightness': 50,
 }
 
 led_states = [{"status": "off", "color": "#000000"} for _ in range(settings_data['num_lights'])] # initializing the off leds
@@ -19,10 +20,20 @@ led_states = [{"status": "off", "color": "#000000"} for _ in range(settings_data
 # LED Configuration
 LED_PIN = board.D18  # GPIO 18
 LED_COUNT = settings_data['num_lights']  # Number of LEDs
-LED_BRIGHTNESS = 1  # Adjust as needed
+LED_BRIGHTNESS = settings_data['max_brightness']/100  # Adjust as needed
 LED_ORDER = neopixel.GRBW  # Adjust as needed for your LED strip type
-pixels = neopixel.NeoPixel(LED_PIN, LED_COUNT, brightness=LED_BRIGHTNESS, pixel_order=LED_ORDER)
 
+#pixels = neopixel.NeoPixel(LED_PIN, LED_COUNT, brightness=LED_BRIGHTNESS, pixel_order=LED_ORDER)
+def initialize_pixels():
+    global pixels
+    pixels = neopixel.NeoPixel(
+        LED_PIN,
+        settings_data['num_lights'],
+        brightness=settings_data['max_brightness']/100,
+        pixel_order=LED_ORDER
+    )
+
+initialize_pixels()
 
 @app.route('/')
 def index():
@@ -42,6 +53,7 @@ def update_settings():
     settings_data['width_lights'] = request.form.get('width_lights', type=int, default=settings_data['width_lights'])
     settings_data['breathing_speed'] = request.form.get('breathing_speed', type=float, default=settings_data['breathing_speed'])
     settings_data['wave_speed'] = request.form.get('wave_speed', type=float, default=settings_data['wave_speed'])
+    settings_data['max_brightness'] = request.form.get('max_brightness', type=int, default=settings_data['max_brightness'])
 
     num_lights = settings_data['num_lights']
 
@@ -52,6 +64,8 @@ def update_settings():
     else:
         # If the number has decreased, trim the led_states list
         led_states = led_states[:num_lights]
+
+    initialize_pixels()
 
     # Redirect to the index page where the settings will be displayed
     return redirect(url_for('index'))
@@ -87,7 +101,6 @@ def apply_effect():
     data = request.get_json()
     selected_leds = data.get('leds')
     effect = data.get('effect')
-    off_leds = []
     for led in selected_leds:
         led_id = int(led)
         current_state = led_states[led_id]
@@ -97,8 +110,9 @@ def apply_effect():
         # effects 
         if effect == 'off':
             if led_states[led_id]['status'] != 'off':
-                led_states[led_id] = {'status': 'off', 'color': '#000000'}
                 pixels[led_id] = (0, 0, 0, 0)
+                led_states[led_id] = {'status': 'off', 'color': '#000000'}
+                
         else:
             
             if effect == 'breathing':
