@@ -1,6 +1,13 @@
 * {
     font-family: 'Arial', sans-serif;
 }
+/*
 html {
+    background-color: #313233;
+}
+*/
+html, body {
+    height: 100%;
+    min-height: 100vh; 
     background-color: #313233;
 }
