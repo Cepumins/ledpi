@@ -8,7 +8,7 @@ import colorsys
 app = Flask(__name__)
 
 settings_data = {
-    'num_lights': 150,
+    'num_lights': 100,
     'width_lights': 10,
     'breathing_speed': 5,
     'wave_speed': 5,
@@ -61,7 +61,7 @@ def update_settings():
     # Update led_states to reflect new number of lights
     if num_lights > len(led_states):
         # If the number of lights has increased, add more 'off' states
-        led_states += ["off"] * (num_lights - len(led_states))
+        led_states += [{"status": "off", "color": "#000000"}] * (num_lights - len(led_states))
     else:
         # If the number has decreased, trim the led_states list
         led_states = led_states[:num_lights]
