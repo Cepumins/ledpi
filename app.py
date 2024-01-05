@@ -8,7 +8,7 @@ import colorsys
 app = Flask(__name__)
 
 settings_data = {
-    'num_lights': 100,
+    'num_lights': 150,
     'width_lights': 10,
     'breathing_speed': 5,
     'wave_speed': 5,
@@ -32,6 +32,7 @@ def initialize_pixels():
         brightness=settings_data['max_brightness']/100,
         pixel_order=LED_ORDER
     )
+    
 
 initialize_pixels()
 
