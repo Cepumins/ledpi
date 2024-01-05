@@ -14,7 +14,7 @@ settings_data = {
     'wave_speed': 5
 }
 
-led_states = ["off"] * settings_data['num_lights']  # Assuming 100 LEDs
+led_states = [{"status": "off", "color": "#000000"} for _ in range(settings_data['num_lights'])] # initializing the off leds
 
 # LED Configuration
 LED_PIN = board.D18  # GPIO 18
@@ -67,7 +67,6 @@ def apply_color():
     data = request.get_json()
     selected_leds = data.get('leds')
     hex_color = data.get('color')
-    rgbw_color = hex_to_rgbw(hex_color)
     changed_leds = []
     for led in selected_leds:
         led_id = int(led)
@@ -75,6 +74,7 @@ def apply_color():
             led_states[led_id] = {"status": "on", "color": hex_color}
             changed_leds.append(led_id) 
             #pixels[led_id] = rgbw_color
+    rgbw_color = hex_to_rgbw(hex_color)
     for led_id in changed_leds:
         pixels[led_id] = rgbw_color
     pixels.show()
